@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import UnivariateSpline
 from lecroyutils.data import LecroyScopeData
 
-def process_waveform(file_path, ax_original, points):
+def process_waveform(file_path, ax_original, points, peaking_time_us=10):
     # Load data from the file
     data = LecroyScopeData.parse_file(file_path)
 
@@ -28,21 +28,22 @@ def process_waveform(file_path, ax_original, points):
     ax_original[0].plot(x_values, y_values, label='Vtp = ' + str(test_pulse) + 'mV')
 
     # Find the x idx closest to 10
-    idx_10 = np.abs(x_values - 10).argmin()
-    points.append((test_pulse*0.24, 1 - y_values[idx_10]))
+    idx_peak = np.abs(x_values - peaking_time_us).argmin()
+    points.append((test_pulse*0.24, 1 - y_values[idx_peak]))
 
     # Add a single point to ax_original[1]
     #ax_original[1].plot(, y_values[idx_10], 'o')
 
 if __name__ == '__main__':
     # Check if a file path and thread count are provided as command-line arguments
-    if len(sys.argv) != 3:
-        print("Usage: python script.py <file_path> <cfg_num>")
+    if len(sys.argv) != 4:
+        print("Usage: python plot_waveform_by_config.py <file_path> <cfg_num> <peaking_time_us>")
         sys.exit(1)
 
     # Extract the file path and config number from the command-line arguments
     file_path = sys.argv[1]
     cfg_num = int(sys.argv[2])
+    peaking_time_us = int(sys.argv[3])
 
     # Check if the config number is valid
     if not (0 <= cfg_num <= 1792):
@@ -60,14 +61,13 @@ if __name__ == '__main__':
     # Figure and subplots for plotting
     fig, ax_original = plt.subplots(2, 1, figsize=(16, 9))
 
-
     points = []
 
     # Process the waveform files in plotting them on separate subplots
     for folder in folders:
         file = f"{folder}/C1--{folder.split('/')[-1]}--{str(cfg_num).zfill(5)}.trc"
         print(file)
-        process_waveform(file, ax_original, points)
+        process_waveform(file, ax_original, points, peaking_time_us)
 
     ax_original[0].set_ylabel('Y values (V)')
     ax_original[0].set_xlabel('X values (us)')
@@ -87,10 +87,10 @@ if __name__ == '__main__':
     # Add line equation to the plot on the top left corner of the second plot (m as scientific notation)
     ax_original[1].text(0.1, 0.95, f"y = {m:.3e}x + {b:.2f}", transform=ax_original[1].transAxes)
 
-    ax_original[1].set_ylabel('Value at 10 us (inverted)')
+    ax_original[1].set_ylabel('Value at ' + str(peaking_time_us) + 'us (inverted)')
     ax_original[1].set_xlabel('Test Pulse (fC)')
 
     plt.tight_layout()
-    #plt.show()
+    folder_name = file_path.split('/')[-1]
 
-    plt.savefig(f"waveform_by_config_{cfg_num}.png", dpi=300)
+    plt.savefig(f"waveform_by_config_{folder_name}_{cfg_num}_{peaking_time_us}us.png", dpi=300)
