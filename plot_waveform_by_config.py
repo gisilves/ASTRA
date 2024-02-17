@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import UnivariateSpline
 from lecroyutils.data import LecroyScopeData
 
-def process_waveform(file_path, ax_original, points, peaking_time_us=10):
+def process_waveform(file_path, ax_original, points, peaking_time_us, baseline_shift):
     # Load data from the file
     data = LecroyScopeData.parse_file(file_path)
 
@@ -17,9 +17,24 @@ def process_waveform(file_path, ax_original, points, peaking_time_us=10):
     # Convert x_values to seconds (total width of the waveform is 100 us)
     x_values = x_values * 1e6
 
+    # Smooth the y_values to reduce noise (adjust the smoothing parameter as needed)
+    smoothed_y_values = UnivariateSpline(x_values, y_values, s=2)(x_values)
+
+    # Calculate the baseline using the mean or median of the initial portion of the smoothed data
+    num_points_waveform = len(x_values)
+    baseline_window = num_points_waveform // 12
+    baseline_shift_value = 1 - np.median(smoothed_y_values[:baseline_window])
+
+    print(f"Baseline shift: {baseline_shift}")
+
+    if baseline_shift > 0.1:
+        print("Removing baseline shift")
+        y_values = y_values + baseline_shift_value
+
     # Remove the last 10% of the data to avoid exclude the positive peak
     x_values = x_values[:-int(len(x_values) * 0.1)]
     y_values = y_values[:-int(len(y_values) * 0.1)]
+    
 
     # Retrieve tes pulse values from name
     test_pulse = int(file_path.split('/')[-2].split('_')[0].split('p')[1])
@@ -36,14 +51,21 @@ def process_waveform(file_path, ax_original, points, peaking_time_us=10):
 
 if __name__ == '__main__':
     # Check if a file path and thread count are provided as command-line arguments
-    if len(sys.argv) != 4:
-        print("Usage: python plot_waveform_by_config.py <file_path> <cfg_num> <peaking_time_us>")
+    if len(sys.argv) != 5:
+        print("Usage: python plot_waveform_by_config.py <file_path> <cfg_num> <peaking_time_us> <baseline shift>")
         sys.exit(1)
 
     # Extract the file path and config number from the command-line arguments
     file_path = sys.argv[1]
     cfg_num = int(sys.argv[2])
     peaking_time_us = int(sys.argv[3])
+    baseline_shift = int(sys.argv[4])
+
+    print(f"File path: {file_path}")
+    print(f"Config number: {cfg_num}")
+    print(f"Peaking time: {peaking_time_us}us")
+    print(f"Baseline shift: {baseline_shift}")
+    print()
 
     # Check if the config number is valid
     if not (0 <= cfg_num <= 1792):
@@ -67,7 +89,7 @@ if __name__ == '__main__':
     for folder in folders:
         file = f"{folder}/C1--{folder.split('/')[-1]}--{str(cfg_num).zfill(5)}.trc"
         print(file)
-        process_waveform(file, ax_original, points, peaking_time_us)
+        process_waveform(file, ax_original, points, peaking_time_us, baseline_shift)
 
     ax_original[0].set_ylabel('Y values (V)')
     ax_original[0].set_xlabel('X values (us)')
@@ -93,4 +115,4 @@ if __name__ == '__main__':
     plt.tight_layout()
     folder_name = file_path.split('/')[-1]
 
-    plt.savefig(f"waveform_by_config_{folder_name}_{cfg_num}_{peaking_time_us}us.png", dpi=300)
+    plt.savefig(f"waveform_by_config_{folder_name}_{cfg_num}_{peaking_time_us}us_baselineShift-{baseline_shift}.png", dpi=300)
