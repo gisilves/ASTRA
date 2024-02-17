@@ -42,7 +42,7 @@ if __name__ == '__main__':
 
     # Save the figures
     name = sys.argv[1].split('_')[-1].split('.')[0]
-    fig2_name = name + '_2d_histograms.png'
+    fig2_name = 'plots/' + name + '_2d_histograms.png'
     #fig2.set_size_inches(16, 9)
     # Add title to the figure with: file name, number of files, number of files after cuts
     fig2.suptitle(name + ' - ' + str(len(file_paths)) + ' files')
@@ -69,10 +69,10 @@ if __name__ == '__main__':
     peak_idx = 0
 
     # Cut values set around the peak
-    distance_down = x_edges[sorted_peaks[peak_idx][1]] - 2 * (x_edges[1] - x_edges[0])
-    distance_up = x_edges[sorted_peaks[peak_idx][1]] + 2 * (x_edges[1] - x_edges[0])
-    x_at_min_down = y_edges[sorted_peaks[peak_idx][2]] - 10 * (y_edges[1] - y_edges[0])
-    x_at_min_up = y_edges[sorted_peaks[peak_idx][2]] + 10 * (y_edges[1] - y_edges[0])
+    distance_down = x_edges[sorted_peaks[peak_idx][1]] - 1.5 * (x_edges[1] - x_edges[0])
+    distance_up = x_edges[sorted_peaks[peak_idx][1]] + 1.5 * (x_edges[1] - x_edges[0])
+    x_at_min_down = y_edges[sorted_peaks[peak_idx][2]] - 5 * (y_edges[1] - y_edges[0])
+    x_at_min_up = y_edges[sorted_peaks[peak_idx][2]] + 5 * (y_edges[1] - y_edges[0])
 
     # Add lines superimposed on the plots to indicate the cuts
     axs2[1].axhline(x_at_min_down, color='red')
@@ -117,7 +117,7 @@ if __name__ == '__main__':
 
     # Save the figures
     name = sys.argv[1].split('results_')[1].split('.')[0]
-    fig2_name = name + '_2d_histograms_filtered.png'
+    fig2_name = 'plots/' + name + '_2d_histograms_filtered.png'
 
     # Add title to the figure with: file name, number of files, number of files after cuts
     fig2.suptitle(name + ' - ' + str(len(file_paths)) + ' files - ' + str(len(filtered_file_paths)) + ' files after cuts')

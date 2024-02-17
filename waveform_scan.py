@@ -203,7 +203,7 @@ if __name__ == '__main__':
     y_variances = [result[8] for result in results_list]
 
     # Save the lists to file
-    out_name = 'results_' + file_path.split('/')[-1]
+    out_name = 'Results/results_' + file_path.split('/')[-1]
     np.savez_compressed(out_name, 
                         file_paths=file_paths, 
                         min_y=min_y, 
@@ -254,7 +254,7 @@ if __name__ == '__main__':
 
     # Save the figures
     # Retrieve the folder name from the file path
-    folder_name = file_path.split('/')[-1]
+    folder_name = 'plots/' + file_path.split('/')[-1]
     fig1_name = folder_name + '_histograms.png'
     fig2_name = folder_name + '_2d_histograms.png'
     # Save figure at high resolution
