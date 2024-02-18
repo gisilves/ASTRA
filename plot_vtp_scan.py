@@ -27,14 +27,19 @@ def process_waveform(file_path):
 
 if __name__ == '__main__':
     # Check if a file path, start and stop waveforms are provided as command-line arguments
-    if len(sys.argv) != 4:
-        print("Usage: python plot_waveform_by_config.py <file_path> <start_waveform> <stop_waveform>")
+    if len(sys.argv) != 5:
+        print("Usage: python plot_vtp_scan.py <file_path> <start_waveform> <stop_waveform> <peaking_time> <fit_min> <fit_max>")
         sys.exit(1)
 
     # Extract the file path, start and stop waveforms from the command-line arguments 
     file_path = sys.argv[1]
     start_waveform = int(sys.argv[2])
     stop_waveform = int(sys.argv[3])
+    peak_time = float(sys.argv[4])
+
+
+    fit_min = 20
+    fit_max = 140
 
     # Check if the file path is valid
     if not glob.glob(file_path):
@@ -55,7 +60,6 @@ if __name__ == '__main__':
     
 
     # Loop from start_waveform to stop_waveform
-    peak_time = 6.5
     peak_values = []
 
     vtp_idx = 0
@@ -94,27 +98,27 @@ if __name__ == '__main__':
 
     # Plot the peak values at 10 us
     peak_values_at_10 = np.array(peak_values)
-    ax2.plot(peak_values_at_10[:, 0], 1 - peak_values_at_10[:, 1], 'o')
+    ax2.plot(peak_values_at_10[:, 0], (1.2 - peak_values_at_10[:, 1])*100, 'o') # NOTE: 1.2V should be the baseline as set by BLH voltage
     ax2.set_title('Peak values at ' + str(peak_time) + ' us')
     ax2.set_xlabel('Vtp (fC)')
     # Add x divisions every 10 fC
     ax2.set_xticks(np.arange(0, 300, 10)) 
-    ax2.set_ylabel('Amplitude (V)')
+    ax2.set_ylabel('Peak value (mV)')
 
     # Add light grid
     ax2.grid(color='gray', linestyle='--', linewidth=0.5)
 
-    # Linear regression from 50 to 100 fC
-    idx_20 = np.abs(peak_values_at_10[:, 0] - 20).argmin()
-    idx_140 = np.abs(peak_values_at_10[:, 0] - 140).argmin()
+    # Linear regression from fit_min to fit_max fC
+    idx_20 = np.abs(peak_values_at_10[:, 0] - fit_min).argmin()
+    idx_140 = np.abs(peak_values_at_10[:, 0] - fit_max).argmin()
 
     x = peak_values_at_10[idx_20:idx_140, 0]
-    y = 1 - peak_values_at_10[idx_20:idx_140, 1]
+    y = (1.2 - peak_values_at_10[idx_20:idx_140, 1])*100
     m, b = np.polyfit(x, y, 1)
     ax2.plot(x, m*x + b, label='y = ' + str(m) + 'x + ' + str(b))
     ax2.legend()
-
-    plt.tight_layout()
+ 
+ 
     plt.show()
 
     
