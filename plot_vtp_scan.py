@@ -52,9 +52,12 @@ if __name__ == '__main__':
     parser.add_argument('--start_waveform', type=int, help='Start waveform', default=0, dest='start_waveform')
     parser.add_argument('--stop_waveform', type=int, help='Stop waveform', default=99, dest='stop_waveform')
     parser.add_argument('--peaking_time', type=float, help='Nominal peaking time of the setup', default=9, dest='peak_time')
-    parser.add_argument('--fit_min', type=float, help='Minimum value for the linear fit', default=20, dest='fit_min')
-    parser.add_argument('--fit_max', type=float, help='Maximum value for the linear fit', default=140, dest='fit_max')
-    parser.add_argument('--pt_line', type=int, help='Add a line at the peaking time', default=True, dest='pt_line')
+    parser.add_argument('--fit_min_peak', type=float, help='Minimum value for the linear fit', default=20, dest='fit_min_peak')
+    parser.add_argument('--fit_max_peak', type=float, help='Maximum value for the linear fit', default=140, dest='fit_max_peak')
+    parser.add_argument('--fit_min_min', type=float, help='Minimum value for the linear fit', default=20, dest='fit_min_min')
+    parser.add_argument('--fit_max_min', type=float, help='Maximum value for the linear fit', default=140, dest='fit_max_min')
+    parser.add_argument('--pt_line', action='store_true', help='Add a line at the peaking time', default=False, dest='pt_line')
+    parser.add_argument('--pol1', action='store_true', help='Use a linear fit', default=False, dest='pol1')
 
     # If no arguments are given, print the help message
     if len(sys.argv) == 1:
@@ -68,8 +71,10 @@ if __name__ == '__main__':
     print('\tStart waveform: ' + str(args.start_waveform))
     print('\tStop waveform: ' + str(args.stop_waveform))
     print('\tPeaking time: ' + str(args.peak_time))
-    print('\tFit minimum: ' + str(args.fit_min))
-    print('\tFit maximum: ' + str(args.fit_max))
+    print('\tFit min at peak: ' + str(args.fit_min_peak))
+    print('\tFit max at peak: ' + str(args.fit_max_peak))
+    print('\tFit min at minimum: ' + str(args.fit_min_min))
+    print('\tFit max at minimum: ' + str(args.fit_max_min))
     print('\tAdd line at peaking time: ' + str(args.pt_line))
 
     # Check if the file path is valid
@@ -152,8 +157,8 @@ if __name__ == '__main__':
     ax2.grid(color='gray', linestyle='--', linewidth=0.5)
 
     # Linear regression from fit_min to fit_max fC
-    idx_min = np.abs(peak_value_at_PT[:, 0] - args.fit_min).argmin()
-    idx_max = np.abs(peak_value_at_PT[:, 0] - args.fit_max).argmin()
+    idx_min = np.abs(peak_value_at_PT[:, 0] - args.fit_min_peak).argmin()
+    idx_max = np.abs(peak_value_at_PT[:, 0] - args.fit_max_peak).argmin()
 
     x = peak_value_at_PT[idx_min:idx_max, 0]
     y = (peak_value_at_PT[idx_min:idx_max,2] - peak_value_at_PT[idx_min:idx_max, 1])
@@ -186,8 +191,8 @@ if __name__ == '__main__':
     ax4 = plt.subplot(4, 1, 4)
     ax4.plot(vtp_values[args.start_waveform:args.stop_waveform+1], min_values[:, 3] - min_values[:, 2]*1000, 'o')
     # Linear regression from fit_min to fit_max fC
-    idx_min = np.abs(vtp_values - args.fit_min).argmin()
-    idx_max = np.abs(vtp_values - args.fit_max).argmin()
+    idx_min = np.abs(vtp_values - args.fit_min_min).argmin()
+    idx_max = np.abs(vtp_values - args.fit_max_min).argmin()
 
     x = vtp_values[idx_min:idx_max]
     y = min_values[idx_min:idx_max, 3] - min_values[idx_min:idx_max, 2]*1000
