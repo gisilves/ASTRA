@@ -52,7 +52,7 @@ def process_waveform(file_path):
 
     return signal
 
-def plot_waveform_by_cfg(file_path, pt, ax):
+def plot_waveform_by_cfg(file_path, pt, ax, fit_min_gain0, fit_max_gain0, fit_min_gain1, fit_max_gain1, is_pol1):
         folders = sorted(glob.glob(file_path + '/*'))
         good_folders = []
     
@@ -94,17 +94,24 @@ def plot_waveform_by_cfg(file_path, pt, ax):
             ax.set_xlabel('Vtp [fC]')
             ax.set_ylabel('Amplitude [mV]')
 
-            # Perform a linear fit: 20 to 100fC if gain is 1, 20 to 150fC if gain is 0
-            idx_25fC = np.abs(vtp_values - 25).argmin()
-            idx_100fC = np.abs(vtp_values - 100).argmin()
-            idx_160fC = np.abs(vtp_values - 160).argmin()
+            # Perform a linear fit: fit_min_gain0 to fit_max_gain0 if gain is 0, fit_min_gain1 to fit_max_gain1 if gain is 1 
+            idx_f_min_0 = np.abs(vtp_values - fit_min_gain0).argmin()
+            idx_f_max_0 = np.abs(vtp_values - fit_max_gain0).argmin()
+            idx_f_min_1 = np.abs(vtp_values - fit_min_gain1).argmin()
+            idx_f_max_1 = np.abs(vtp_values - fit_max_gain1).argmin()
+
+            print('Fit minimum: ' + str(fit_min_gain0))
+            print('Fit maximum: ' + str(fit_max_gain0))
+            print('Fit minimum: ' + str(fit_min_gain1))
+            print('Fit maximum: ' + str(fit_max_gain1))
+            print('Is pol1: ' + str(is_pol1))
 
             if 'gain1' in folder:
-                m, b = np.polyfit(vtp_values[idx_25fC:idx_100fC], y_values[idx_25fC:idx_100fC], 1)
-                ax.plot(vtp_values[idx_25fC:idx_100fC], m*vtp_values[idx_25fC:idx_100fC] + b, color=colors[good_folders.index(folder)])
+                m, b = np.polyfit(vtp_values[idx_f_min_1:idx_f_max_1], y_values[idx_f_min_1:idx_f_max_1], 1)
+                ax.plot(vtp_values[idx_f_min_1:idx_f_max_1], m*vtp_values[idx_f_min_1:idx_f_max_1] + b, color=colors[good_folders.index(folder)])
             else:
-                m, b = np.polyfit(vtp_values[idx_25fC:idx_160fC], y_values[idx_25fC:idx_160fC], 1)
-                ax.plot(vtp_values[idx_25fC:idx_160fC], m*vtp_values[idx_25fC:idx_160fC] + b, color=colors[good_folders.index(folder)])
+                m, b = np.polyfit(vtp_values[idx_f_min_0:idx_f_max_0], y_values[idx_f_min_0:idx_f_max_0], 1)
+                ax.plot(vtp_values[idx_f_min_0:idx_f_max_0], m*vtp_values[idx_f_min_0:idx_f_max_0] + b, color=colors[good_folders.index(folder)])
             print('Fit: y = ' + str(round(m, 2)) + 'x + ' + str(round(b, 2)))
             
             # Handles and Labels for the legend
@@ -113,13 +120,21 @@ def plot_waveform_by_cfg(file_path, pt, ax):
             print()
 
         # Add the legend
-        ax.legend(handles, labels, loc='lower right')
+            if is_pol1:
+                ax.legend(handles, labels, loc='lower left')
+            else:               
+                ax.legend(handles, labels, loc='lower right')
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser(description='Plot Vtp scan')
 
     parser.add_argument('--file_path', type=str, help='Path to the folder containing the folders containing .trc files', default='/media/DATA/', dest='file_path')
+    parser.add_argument('--fit_min_gain0', type=float, help='Minimum value for the linear fit for gain 0', default=20, dest='fit_min_gain0')
+    parser.add_argument('--fit_max_gain0', type=float, help='Maximum value for the linear fit for gain 0', default=150, dest='fit_max_gain0')
+    parser.add_argument('--fit_min_gain1', type=float, help='Minimum value for the linear fit for gain 1', default=20, dest='fit_min_gain1')
+    parser.add_argument('--fit_max_gain1', type=float, help='Maximum value for the linear fit for gain 1', default=100, dest='fit_max_gain1')
+    parser.add_argument('--pol1', action='store_true', help='Plot for pol1', default=False, dest='pol1')
 
     # If no arguments are given, print the help message
     if len(sys.argv) == 1:
@@ -153,6 +168,6 @@ if __name__ == '__main__':
     # Subplots for the different peaking times
     fig, axs = plt.subplots(len(pts), 1, figsize=(12, len(pts)*6.25))
     for i, pt in enumerate(pts):
-        plot_waveform_by_cfg(args.file_path, pt, axs[i])    
+        plot_waveform_by_cfg(args.file_path, pt, axs[i], args.fit_min_gain0, args.fit_max_gain0, args.fit_min_gain1, args.fit_max_gain1, args.pol1)    
                           
-    plt.savefig('waveforms_by_pt_gain_comparison.png', dpi=300, bbox_inches='tight', pad_inches=0.1)
+    plt.savefig('waveforms_by_pt_gain_comparison_' + args.file_path.split('/')[-1] + '.png', dpi=300, bbox_inches='tight', pad_inches=0.1)
