@@ -17,6 +17,7 @@ if __name__ == '__main__':
     parser.add_argument('--auto_fit', action='store_true', help='Automatically find the fit range', default=False, dest='auto_fit')
     parser.add_argument('--pt_line', action='store_true', help='Add a line at the peaking time', default=False, dest='pt_line')
     parser.add_argument('--note', type=str, help='Note to add to the plot and filename', default='', dest='note')
+    parser.add_argument('--positive_waveforms', action='store_true', help='Assume positive waveforms', default=False, dest='positive_waveforms')
 
     # If no arguments are given, print the help message
     if len(sys.argv) == 1:
@@ -38,4 +39,7 @@ if __name__ == '__main__':
     print('\tAdd line at peaking time: ' + str(args.pt_line))
     print('\tNote: ' + args.note)
     
-    functions.process_folder(args.file_path, args.start_waveform, args.stop_waveform, args.peak_time, args.fit_start_peak, args.fit_end_peak, args.fit_start_min, args.fit_end_min, args.auto_fit, args.pt_line, args.note)
+    functions.process_folder(args.file_path, args.start_waveform, args.stop_waveform, 
+                             args.peak_time, args.fit_start_peak, args.fit_end_peak, 
+                             args.fit_start_min, args.fit_end_min, args.auto_fit, 
+                             args.pt_line, args.note, args.positive_waveforms)
