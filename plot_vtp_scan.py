@@ -6,9 +6,9 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import matplotlib.gridspec as gridspec
+from scipy.stats import linregress
 from scipy.interpolate import UnivariateSpline
 from lecroyutils.data import LecroyScopeData
-
 
 # Use seaborn for plotting
 sns.set(style="whitegrid")
@@ -56,8 +56,9 @@ if __name__ == '__main__':
     parser.add_argument('--fit_max_peak', type=float, help='Maximum value for the linear fit', default=140, dest='fit_max_peak')
     parser.add_argument('--fit_min_min', type=float, help='Minimum value for the linear fit', default=20, dest='fit_min_min')
     parser.add_argument('--fit_max_min', type=float, help='Maximum value for the linear fit', default=140, dest='fit_max_min')
+    parser.add_argument('--auto_fit', action='store_true', help='Automatically find the fit range', default=False, dest='auto_fit')
     parser.add_argument('--pt_line', action='store_true', help='Add a line at the peaking time', default=False, dest='pt_line')
-    parser.add_argument('--pol1', action='store_true', help='Use a linear fit', default=False, dest='pol1')
+    parser.add_argument('--note', type=str, help='Note to add to the plot and filename', default='', dest='note')
 
     # If no arguments are given, print the help message
     if len(sys.argv) == 1:
@@ -75,7 +76,9 @@ if __name__ == '__main__':
     print('\tFit max at peak: ' + str(args.fit_max_peak))
     print('\tFit min at minimum: ' + str(args.fit_min_min))
     print('\tFit max at minimum: ' + str(args.fit_max_min))
+    print('\tAuto fit: ' + str(args.auto_fit))
     print('\tAdd line at peaking time: ' + str(args.pt_line))
+    print('\tNote: ' + args.note)
 
     # Check if the file path is valid
     if not glob.glob(args.file_path):
@@ -123,7 +126,7 @@ if __name__ == '__main__':
         vtp_idx += 1
 
     # Add a title
-    my_title(ax,'Vtp scan ' + str(round(vtp_values[args.start_waveform],1)) + 'fC to ' + str(round(vtp_values[args.stop_waveform],1)) + 'fC')
+    my_title(ax,'Vtp scan ' + str(round(vtp_values[args.start_waveform],1)) + 'fC to ' + str(round(vtp_values[args.stop_waveform],1)) + 'fC ')
     
     # Add labels
     ax.set_xlabel('Time (us)', loc='right')
@@ -141,7 +144,7 @@ if __name__ == '__main__':
     # Second plot for the peak values
     ax2 = plt.subplot(4, 1, 2)
 
-    # Plot the peak values at 10 us
+    # Plot the peak values at peak_time
     peak_value_at_PT = np.array(peak_values)
     ax2.plot(peak_value_at_PT[:, 0], (peak_value_at_PT[:,2] - peak_value_at_PT[:, 1]), 'o') # NOTE: 1.2V should be the baseline as set by BLH voltage
     my_title(ax2, 'Peak values at ' + str(args.peak_time) + ' us')
@@ -156,13 +159,42 @@ if __name__ == '__main__':
     # Add light grid
     ax2.grid(color='gray', linestyle='--', linewidth=0.5)
 
+
+    if args.auto_fit:
+        # Find automatically the maximum of the fit range (assuming the ASIC is linear in the first part of the scan)
+        
+        # Fit from fit_min_peak to 40fc
+        idx_min = np.abs(peak_value_at_PT[:, 0] - args.fit_min_peak).argmin()
+        idx_max = np.abs(peak_value_at_PT[:, 0] - 40).argmin()
+        x = peak_value_at_PT[idx_min:idx_max, 0]
+        y = (peak_value_at_PT[idx_min:idx_max,2] - peak_value_at_PT[idx_min:idx_max, 1])
+        linearfit_start = linregress(x, y)
+        m_s = linearfit_start.slope
+        b_S = linearfit_start.intercept
+
+        # Fit from 200fc to 240fc
+        idx_min = np.abs(peak_value_at_PT[:, 0] - 200).argmin()
+        idx_max = np.abs(peak_value_at_PT[:, 0] - 240).argmin()
+        x = peak_value_at_PT[idx_min:idx_max, 0]
+        y = (peak_value_at_PT[idx_min:idx_max,2] - peak_value_at_PT[idx_min:idx_max, 1])
+        linearfit_end = linregress(x, y)
+        m_e = linearfit_end.slope
+        b_e = linearfit_end.intercept
+
+        # Find the intersection of the two lines
+        args.fit_max_peak = (b_e - b_S) / (m_s - m_e)
+        
+        print('Automatically computed fit max for peak values: ' + str(args.fit_max_peak))
+
     # Linear regression from fit_min to fit_max fC
     idx_min = np.abs(peak_value_at_PT[:, 0] - args.fit_min_peak).argmin()
     idx_max = np.abs(peak_value_at_PT[:, 0] - args.fit_max_peak).argmin()
 
     x = peak_value_at_PT[idx_min:idx_max, 0]
     y = (peak_value_at_PT[idx_min:idx_max,2] - peak_value_at_PT[idx_min:idx_max, 1])
-    m, b = np.polyfit(x, y, 1)
+    linearfit = linregress(x, y)
+    m = linearfit.slope
+    b = linearfit.intercept
     ax2.plot(x, m*x + b, label='y = ' + str(m) + 'x + ' + str(b))
     # Print linear fit equation (up to two decimal places)
     ax2.text(0.75, 0.25, 'y = ' + str(round(m, 2)) + 'x + ' + str(round(b, 2)), 
@@ -190,14 +222,49 @@ if __name__ == '__main__':
 
     ax4 = plt.subplot(4, 1, 4)
     ax4.plot(vtp_values[args.start_waveform:args.stop_waveform+1], min_values[:, 3] - min_values[:, 2]*1000, 'o')
+
+
+    if args.auto_fit:
+        # Find automatically the maximum of the fit range (assuming the ASIC is linear in the first part of the scan)
+        
+        # Fit from fit_min_peak to 40fc
+        idx_min = np.abs(vtp_values - args.fit_min_min).argmin()
+        idx_max = np.abs(vtp_values - 40).argmin()
+        x = vtp_values[idx_min:idx_max]
+        y = min_values[idx_min:idx_max, 3] - min_values[idx_min:idx_max, 2]*1000
+        linearfit_start = linregress(x, y)
+        m_s = linearfit_start.slope
+        b_S = linearfit_start.intercept
+
+        # Fit from 200fc to 240fc
+        idx_min = np.abs(vtp_values - 200).argmin()
+        idx_max = np.abs(vtp_values - 240).argmin()
+        x = vtp_values[idx_min:idx_max]
+        y = min_values[idx_min:idx_max, 3] - min_values[idx_min:idx_max, 2]*1000
+        linearfit_end = linregress(x, y)
+        m_e = linearfit_end.slope
+        b_e = linearfit_end.intercept
+
+        # Find the intersection of the two lines
+        args.fit_max_min = (b_e - b_S) / (m_s - m_e)
+        
+        print('Automatically computed fit max for minimum values: ' + str(args.fit_max_min))
+
     # Linear regression from fit_min to fit_max fC
     idx_min = np.abs(vtp_values - args.fit_min_min).argmin()
     idx_max = np.abs(vtp_values - args.fit_max_min).argmin()
-
     x = vtp_values[idx_min:idx_max]
     y = min_values[idx_min:idx_max, 3] - min_values[idx_min:idx_max, 2]*1000
-    m, b = np.polyfit(x, y, 1)
+
+    # Perform linear fit with scipy
+    linearfit = linregress(x, y)
+    m = linearfit.slope
+    b = linearfit.intercept
+    pvalue = linearfit.pvalue
+    rvalue = linearfit.rvalue
+    
     ax4.plot(x, m*x + b, label='y = ' + str(m) + 'x + ' + str(b))
+
     # Print linear fit equation (up to two decimal places)
     ax4.text(0.75, 0.25, 'y = ' + str(round(m, 2)) + 'x + ' + str(round(b, 2)), 
         horizontalalignment='center', 
@@ -217,9 +284,9 @@ if __name__ == '__main__':
     my_title(ax4, 'Minimum value amplitude vs Vtp')
 
     if args.pt_line:
-        plt.savefig('vtp_scan_amp_'+args.file_path.split('/')[-1]+'.png', format='png', dpi=300, bbox_inches='tight')
+        plt.savefig('plots/vtp_scan_amp_'+args.file_path.split('/')[-1]+args.note+'.png', format='png', dpi=300, bbox_inches='tight')
     else:
-        plt.savefig('vtp_scan_no_pt_line_amp_'+args.file_path.split('/')[-1]+'.png', format='png', dpi=300, bbox_inches='tight')
+        plt.savefig('plots/vtp_scan_no_pt_line_amp_'+args.file_path.split('/')[-1]+args.note+'.png', format='png', dpi=300, bbox_inches='tight')
 
-    
+
     
