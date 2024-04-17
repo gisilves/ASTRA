@@ -193,7 +193,7 @@ def time_at_true_peak(ax, vtp_values, min_values, max_values, start_waveform, st
         tick.set_rotation(45)
     my_title(ax, 'True peaking time')
 
-def amplitude_at_true_peak(ax, vtp_values, min_values, max_values, start_waveform, stop_waveform, positive_waveforms, auto_fit, fit_start_min, plotting):
+def amplitude_at_true_peak(ax, vtp_values, min_values, max_values, start_waveform, stop_waveform, positive_waveforms, auto_fit, fit_start_min, fit_end_min, plotting):
     
     if plotting:
         if positive_waveforms:
@@ -292,7 +292,7 @@ def process_folder(file_path, start_waveform, stop_waveform, peaking_time, fit_s
         time_at_true_peak(ax3, vtp_values, min_values, max_values, start_waveform, stop_waveform, positive_waveforms)
     
     # Fourth plot for the amplitude at true peak wrt vtp
-    m_min, b_min, pvalue_min, rvalue_min = amplitude_at_true_peak(ax4, vtp_values, min_values, max_values, start_waveform, stop_waveform, positive_waveforms, auto_fit, fit_start_min, plotting)
+    m_min, b_min, pvalue_min, rvalue_min = amplitude_at_true_peak(ax4, vtp_values, min_values, max_values, start_waveform, stop_waveform, positive_waveforms, auto_fit, fit_start_min, fit_end_min, plotting)
 
     if plotting:
         if pt_line:
