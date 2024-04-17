@@ -9,6 +9,7 @@ import matplotlib.gridspec as gridspec
 from scipy.stats import linregress
 from scipy.interpolate import UnivariateSpline
 from lecroyutils.data import LecroyScopeData
+import time
 
 def my_title(ax, title):
     ax.text(1.02, 0.5, title,
@@ -65,28 +66,15 @@ def auto_fit_range(data, min):
     print('Automatically computed fit max for peak values: ' + str(fit_max))
     return fit_max - 10
 
-def process_folder(file_path, start_waveform, stop_waveform, peaking_time, fit_start_peak, fit_end_peak, fit_start_min, fit_end_min, auto_fit, pt_line, note, positive_waveforms):
-    # Check if the file path is valid
-    if not glob.glob(file_path):
-        print("Invalid file path")
-        sys.exit(1)
-
-    # Find and sort all files .trc in the given path
-    files = sorted(glob.glob(file_path + '/*.trc'))
-    print('Found ' + str(len(files)) + ' files')
-
-    # Vtp values (inf fC)
-    vtp_values = np.linspace(3.6,280,100)
+def loop_on_waveforms(vtp_values, files, start_waveform, stop_waveform, peaking_time, ax, pt_line, plotting):
 
     # Loop from start_waveform to stop_waveform
     peak_values = []
     min_values = []
     max_values = []
 
-    fig = plt.subplots(4, 1, figsize=(12, 25))
-    ax = plt.subplot(4, 1, 1)
-
     vtp_idx = 0
+
     for waveform in range(start_waveform, stop_waveform + 1):
         # Process the waveform
         print('Processing waveform ' + str(waveform), flush=True, end='\r')
@@ -110,43 +98,48 @@ def process_folder(file_path, start_waveform, stop_waveform, peaking_time, fit_s
         min_values.append((vtp_values[vtp_idx], x_values[idx_min], y_values[idx_min]*1000, baseline))
         max_values.append((vtp_values[vtp_idx], x_values[idx_max], y_values[idx_max]*1000, baseline))
 
-        # Plot the data (add the corresponding Vtp value as label) using seaborn
-        ax.plot(x_values, y_values, label='Vtp = ' + str(vtp_values[vtp_idx]) + 'fC')
+        if plotting:
+            # Plot the data (add the corresponding Vtp value as label) using seaborn
+            ax.plot(x_values, y_values, label='Vtp = ' + str(vtp_values[vtp_idx]) + 'fC')
         vtp_idx += 1
 
-    # Add a title
-    my_title(ax,'Vtp scan ' + str(round(vtp_values[start_waveform],1)) + 'fC to ' + str(round(vtp_values[stop_waveform],1)) + 'fC ')
-    
-    # Add labels
-    ax.set_xlabel('Time (us)', loc='right')
-    ax.set_ylabel('Amplitude (V)', loc='top')
-    # Add x divisions every 10 us
-    ax.set_xticks(np.arange(0, 100, 10))
+    if plotting:    
+        # Add a title
+        my_title(ax,'Vtp scan ' + str(round(vtp_values[start_waveform],1)) + 'fC to ' + str(round(vtp_values[stop_waveform],1)) + 'fC ')
+        
+        # Add labels
+        ax.set_xlabel('Time (us)', loc='right')
+        ax.set_ylabel('Amplitude (V)', loc='top')
+        # Add x divisions every 10 us
+        ax.set_xticks(np.arange(0, 100, 10))
 
-    if pt_line:
-        # Add a line at peak_time
-        ax.axvline(x=peaking_time, color='r', linestyle='--')
+        if pt_line:
+            # Add a line at peak_time
+            ax.axvline(x=peaking_time, color='r', linestyle='--')
 
-    # Add light grid
-    ax.grid(color='gray', linestyle='--', linewidth=0.5)
+        # Add light grid
+        ax.grid(color='gray', linestyle='--', linewidth=0.5)
 
-    # Second plot for the peak values
-    ax2 = plt.subplot(4, 1, 2)
+    # Return the peak values, min values and max values as numpy arrays
+    return np.array(peak_values), np.array(min_values), np.array(max_values)
 
+def values_at_peaking_time(ax, peak_values, peaking_time, fit_start_peak, fit_end_peak, auto_fit, plotting):
     # Plot the peak values at peak_time
     peak_value_at_PT = np.array(peak_values)
-    ax2.plot(peak_value_at_PT[:, 0], np.abs(peak_value_at_PT[:,2] - peak_value_at_PT[:, 1]), 'o') # NOTE: 1.2V should be the baseline as set by BLH voltage
-    my_title(ax2, 'Peak values at ' + str(peaking_time) + ' us')
-    ax2.set_xlabel('Vtp (fC)', loc='right')
-    # Add x divisions every 10 fC
-    ax2.set_xticks(np.arange(0, 300, 10)) 
-    # Rotate slightly the x labels
-    for tick in ax2.get_xticklabels():
-        tick.set_rotation(45)
-    ax2.set_ylabel('Peak amplitude value (mV)', loc='top')
 
-    # Add light grid
-    ax2.grid(color='gray', linestyle='--', linewidth=0.5)
+    if plotting:
+        ax.plot(peak_value_at_PT[:, 0], np.abs(peak_value_at_PT[:,2] - peak_value_at_PT[:, 1]), 'o') # NOTE: 1.2V should be the baseline as set by BLH voltage
+        my_title(ax, 'Peak values at ' + str(peaking_time) + ' us')
+        ax.set_xlabel('Vtp (fC)', loc='right')
+        # Add x divisions every 10 fC
+        ax.set_xticks(np.arange(0, 300, 10)) 
+        # Rotate slightly the x labels
+        for tick in ax.get_xticklabels():
+            tick.set_rotation(45)
+        ax.set_ylabel('Peak amplitude value (mV)', loc='top')
+
+        # Add light grid
+        ax.grid(color='gray', linestyle='--', linewidth=0.5)
 
     if auto_fit:
         fit_end_peak = auto_fit_range(peak_value_at_PT, fit_start_peak)
@@ -162,49 +155,51 @@ def process_folder(file_path, start_waveform, stop_waveform, peaking_time, fit_s
     b_peak = linearfit.intercept
     pvalue_peak = linearfit.pvalue
     rvalue_peak = linearfit.rvalue
-    ax2.plot(x, m_peak*x + b_peak, label='y = ' + str(m_peak) + 'x + ' + str(b_peak))
-    # Print linear fit equation (up to two decimal places)
-    ax2.text(0.75, 0.25, 'y = ' + str(round(m_peak, 2)) + 'x + ' + str(round(b_peak, 2)), 
-        horizontalalignment='center', 
-        verticalalignment='center', 
-        transform=ax2.transAxes,         
-        family='monospace',
-        style='italic',
-        weight='bold')
 
-    # Plot the minimum time values wrt vtp
-    ax3 = plt.subplot(4, 1, 3)
-    # Add light grid
-    ax3.grid(color='gray', linestyle='--', linewidth=0.5)
+    if plotting:
+        ax.plot(x, m_peak*x + b_peak, label='y = ' + str(m_peak) + 'x + ' + str(b_peak))
+        # Print linear fit equation (up to two decimal places)
+        ax.text(0.75, 0.25, 'y = ' + str(round(m_peak, 2)) + 'x + ' + str(round(b_peak, 2)), 
+            horizontalalignment='center', 
+            verticalalignment='center', 
+            transform=ax.transAxes,         
+            family='monospace',
+            style='italic',
+            weight='bold')
+    
+    return m_peak, b_peak, pvalue_peak, rvalue_peak
 
+def time_at_true_peak(ax, vtp_values, min_values, max_values, start_waveform, stop_waveform, positive_waveforms):
     min_values = np.array(min_values)
     max_values = np.array(max_values)
     if positive_waveforms:
-        ax3.plot(vtp_values[start_waveform:stop_waveform+1], max_values[:, 1], 'o')
+        ax.plot(vtp_values[start_waveform:stop_waveform+1], max_values[:, 1], 'o')
     else:
-        ax3.plot(vtp_values[start_waveform:stop_waveform+1], min_values[:, 1], 'o')
+        ax.plot(vtp_values[start_waveform:stop_waveform+1], min_values[:, 1], 'o')
+
+    # Add light grid
+    ax.grid(color='gray', linestyle='--', linewidth=0.5)
 
     # Add labels
-    ax3.set_xlabel('Vtp (mV)', loc='right')
+    ax.set_xlabel('Vtp (mV)', loc='right')
     if positive_waveforms:
-        ax3.set_ylabel('Time @ maximum value (us)', loc='top')
+        ax.set_ylabel('Time @ true maximum value (us)', loc='top')
     else:
-        ax3.set_ylabel('Time @ minimum value (us)', loc='top')
+        ax.set_ylabel('Time @ true minimum value (us)', loc='top')
     # Add x divisions every 10 us
-    ax3.set_xticks(np.arange(0, 300, 10))
+    ax.set_xticks(np.arange(0, 300, 10))
     # Rotate slightly the x labels
-    for tick in ax3.get_xticklabels():
+    for tick in ax.get_xticklabels():
         tick.set_rotation(45)
-    my_title(ax3, 'True peaking time')
+    my_title(ax, 'True peaking time')
 
-    ax4 = plt.subplot(4, 1, 4)
-    # Add light grid
-    ax4.grid(color='gray', linestyle='--', linewidth=0.5)
-
-    if positive_waveforms:
-        ax4.plot(vtp_values[start_waveform:stop_waveform+1], np.abs(max_values[:, 3] - max_values[:, 2]), 'o')
-    else:
-        ax4.plot(vtp_values[start_waveform:stop_waveform+1], np.abs(min_values[:, 3] - min_values[:, 2]), 'o')
+def amplitude_at_true_peak(ax, vtp_values, min_values, max_values, start_waveform, stop_waveform, positive_waveforms, auto_fit, fit_start_min, plotting):
+    
+    if plotting:
+        if positive_waveforms:
+            ax.plot(vtp_values[start_waveform:stop_waveform+1], np.abs(max_values[:, 3] - max_values[:, 2]), 'o')
+        else:
+            ax.plot(vtp_values[start_waveform:stop_waveform+1], np.abs(min_values[:, 3] - min_values[:, 2]), 'o')
 
     if auto_fit:
         if positive_waveforms:
@@ -226,34 +221,79 @@ def process_folder(file_path, start_waveform, stop_waveform, peaking_time, fit_s
     b_min = linearfit.intercept
     pvalue_min = linearfit.pvalue
     rvalue_min = linearfit.rvalue
-    
-    ax4.plot(x, m_min*x + b_min, label='y_min = ' + str(m_min) + 'x + ' + str(b_min))
 
-    # Print linear fit equation (up to two decimal places)
-    ax4.text(0.75, 0.25, 'y = ' + str(round(m_min, 2)) + 'x + ' + str(round(b_min, 2)), 
-        horizontalalignment='center', 
-        verticalalignment='center', 
-        transform=ax4.transAxes,         
-        family='monospace',
-        style='italic',
-        weight='bold')
-    
-    ax4.set_xlabel('Vtp (fC)', loc='right')
-    # Add x divisions every 10 fC
-    ax4.set_xticks(np.arange(0, 300, 10))
-    # Rotate slightly the x labels
-    for tick in ax4.get_xticklabels():
-        tick.set_rotation(45)
-    if positive_waveforms:
-        ax4.set_ylabel('Maximum value amplitude (mV)', loc='top')
-        my_title(ax4, 'Maximum value amplitude vs Vtp')
-    else:
-        ax4.set_ylabel('Minimum value amplitude (mV)', loc='top')
-        my_title(ax4, 'Minimum value amplitude vs Vtp')
+    if plotting:
+        ax.plot(x, m_min*x + b_min, label='y_min = ' + str(m_min) + 'x + ' + str(b_min))
 
-    if pt_line:
-        plt.savefig('plots/vtp_scan_amp_'+file_path.split('/')[-1]+note+'.png', format='png', dpi=300, bbox_inches='tight')
+        # Add light grid
+        ax.grid(color='gray', linestyle='--', linewidth=0.5)
+
+        # Print linear fit equation (up to two decimal places)
+        ax.text(0.75, 0.25, 'y = ' + str(round(m_min, 2)) + 'x + ' + str(round(b_min, 2)), 
+            horizontalalignment='center', 
+            verticalalignment='center', 
+            transform=ax.transAxes,         
+            family='monospace',
+            style='italic',
+            weight='bold')
+        
+        ax.set_xlabel('Vtp (fC)', loc='right')
+        # Add x divisions every 10 fC
+        ax.set_xticks(np.arange(0, 300, 10))
+        # Rotate slightly the x labels
+        for tick in ax.get_xticklabels():
+            tick.set_rotation(45)
+        if positive_waveforms:
+            ax.set_ylabel('Maximum value amplitude (mV)', loc='top')
+            my_title(ax, 'Maximum value amplitude vs Vtp')
+        else:
+            ax.set_ylabel('Minimum value amplitude (mV)', loc='top')
+            my_title(ax, 'Minimum value amplitude vs Vtp')
+
+    return m_min, b_min, pvalue_min, rvalue_min
+
+def process_folder(file_path, start_waveform, stop_waveform, peaking_time, fit_start_peak, fit_end_peak, fit_start_min, fit_end_min, auto_fit, pt_line, note, positive_waveforms, plotting=True):
+    # Check if the file path is valid
+    if not glob.glob(file_path):
+        print("Invalid file path")
+        sys.exit(1)
+
+    # Find and sort all files .trc in the given path
+    files = sorted(glob.glob(file_path + '/*.trc'))
+    print('Found ' + str(len(files)) + ' files')
+
+    # Vtp values (inf fC)
+    vtp_values = np.linspace(3.6,280,100)
+
+    if plotting:
+        fig = plt.subplots(4, 1, figsize=(12, 25))
+        ax = plt.subplot(4, 1, 1)
+        ax2 = plt.subplot(4, 1, 2)
+        ax3 = plt.subplot(4, 1, 3)
+        ax4 = plt.subplot(4, 1, 4)
     else:
-        plt.savefig('plots/vtp_scan_no_pt_line_amp_'+file_path.split('/')[-1]+note+'.png', format='png', dpi=300, bbox_inches='tight')
+        ax = None
+        ax2 = None
+        ax3 = None
+        ax4 = None
+
+    # Loop over the waveforms
+    peak_values, min_values, max_values = loop_on_waveforms(vtp_values, files, start_waveform, stop_waveform, peaking_time, ax, pt_line, plotting)
+
+    # Second plot at fixed peaking time
+    m_peak, b_peak, pvalue_peak, rvalue_peak = values_at_peaking_time(ax2, peak_values, peaking_time, fit_start_peak, fit_end_peak, auto_fit, plotting)
+
+    if plotting:
+        # Third plot for the time at true peak wrt vtp
+        time_at_true_peak(ax3, vtp_values, min_values, max_values, start_waveform, stop_waveform, positive_waveforms)
+    
+    # Fourth plot for the amplitude at true peak wrt vtp
+    m_min, b_min, pvalue_min, rvalue_min = amplitude_at_true_peak(ax4, vtp_values, min_values, max_values, start_waveform, stop_waveform, positive_waveforms, auto_fit, fit_start_min, plotting)
+
+    if plotting:
+        if pt_line:
+            plt.savefig('plots/vtp_scan_amp_'+file_path.split('/')[-1]+note+'.png', format='png', dpi=300, bbox_inches='tight')
+        else:
+            plt.savefig('plots/vtp_scan_no_pt_line_amp_'+file_path.split('/')[-1]+note+'.png', format='png', dpi=300, bbox_inches='tight')
 
     return (m_peak, b_peak, pvalue_peak, rvalue_peak, m_min, b_min, pvalue_min, rvalue_min)
