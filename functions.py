@@ -262,6 +262,10 @@ def process_folder(file_path, start_waveform, stop_waveform, peaking_time, fit_s
     files = sorted(glob.glob(file_path + '/*.trc'))
     print('Found ' + str(len(files)) + ' files')
 
+    if len(files) == 0:
+        print('No files found in the given path')
+        return
+    
     # Vtp values (inf fC)
     vtp_values = np.linspace(3.6,280,100)
 
