@@ -144,7 +144,7 @@ def values_at_peaking_time(ax, peak_values, peaking_time, fit_start_peak, fit_en
     if auto_fit:
         fit_end_peak = auto_fit_range(peak_value_at_PT, fit_start_peak)
 
-    # Linear regression from fit_min to fit_max fC
+    # Linear regression from fit_start_peak to fit_end_peak fC
     idx_min = np.abs(peak_value_at_PT[:, 0] - fit_start_peak).argmin()
     idx_max = np.abs(peak_value_at_PT[:, 0] - fit_end_peak).argmin()
 
@@ -169,29 +169,46 @@ def values_at_peaking_time(ax, peak_values, peaking_time, fit_start_peak, fit_en
     
     return m_peak, b_peak, pvalue_peak, rvalue_peak, fit_end_peak
 
-def time_at_true_peak(ax, vtp_values, min_values, max_values, start_waveform, stop_waveform, positive_waveforms):
+def time_at_true_peak(ax, vtp_values, min_values, max_values, start_waveform, stop_waveform, positive_waveforms, max_linear, plotting):
     min_values = np.array(min_values)
     max_values = np.array(max_values)
-    if positive_waveforms:
-        ax.plot(vtp_values[start_waveform:stop_waveform+1], max_values[:, 1], 'o')
-    else:
-        ax.plot(vtp_values[start_waveform:stop_waveform+1], min_values[:, 1], 'o')
 
-    # Add light grid
-    ax.grid(color='gray', linestyle='--', linewidth=0.5)
-
-    # Add labels
-    ax.set_xlabel('Vtp (mV)', loc='right')
+    # Compute the average time at the true peak from 0 to max_linear fC
     if positive_waveforms:
-        ax.set_ylabel('Time @ true maximum value (us)', loc='top')
+        idx_max = np.abs(max_values[:, 0] - max_linear).argmin()
+        ideal_peaking_time = np.mean(max_values[0:idx_max, 1])
     else:
-        ax.set_ylabel('Time @ true minimum value (us)', loc='top')
-    # Add x divisions every 10 us
-    ax.set_xticks(np.arange(0, 300, 10))
-    # Rotate slightly the x labels
-    for tick in ax.get_xticklabels():
-        tick.set_rotation(45)
-    my_title(ax, 'True peaking time')
+        idx_max = np.abs(min_values[:, 0] - max_linear).argmin()
+        ideal_peaking_time = np.mean(min_values[0:idx_max, 1])
+
+    print('Computed ideal PT: ' + str(ideal_peaking_time))
+
+    if plotting:
+        if positive_waveforms:
+            ax.plot(vtp_values[start_waveform:stop_waveform+1], max_values[:, 1], 'o')
+        else:
+            ax.plot(vtp_values[start_waveform:stop_waveform+1], min_values[:, 1], 'o')
+
+        # Add a line at the ideal peaking time
+        ax.plot([0, max_linear], [ideal_peaking_time, ideal_peaking_time], 'r--')
+
+        # Add light grid
+        ax.grid(color='gray', linestyle='--', linewidth=0.5)
+
+        # Add labels
+        ax.set_xlabel('Vtp (mV)', loc='right')
+        if positive_waveforms:
+            ax.set_ylabel('Time @ true maximum value (us)', loc='top')
+        else:
+            ax.set_ylabel('Time @ true minimum value (us)', loc='top')
+        # Add x divisions every 10 us
+        ax.set_xticks(np.arange(0, 300, 10))
+        # Rotate slightly the x labels
+        for tick in ax.get_xticklabels():
+            tick.set_rotation(45)
+        my_title(ax, 'True peaking time')
+        
+    return ideal_peaking_time
 
 def amplitude_at_true_peak(ax, vtp_values, min_values, max_values, start_waveform, stop_waveform, positive_waveforms, auto_fit, fit_start_true, fit_end_true, plotting):
     
@@ -290,9 +307,8 @@ def process_folder(file_path, start_waveform, stop_waveform, peaking_time, fit_s
     # Compute amplitude at true peak wrt vtp
     m_peak, b_peak, pvalue_peak, rvalue_peak, fit_end_true = amplitude_at_true_peak(ax4, vtp_values, min_values, max_values, start_waveform, stop_waveform, positive_waveforms, auto_fit, fit_start_true, fit_end_true, plotting)
 
-    if plotting:
-        # Plot for the time at true peak wrt vtp
-        time_at_true_peak(ax3, vtp_values, min_values, max_values, start_waveform, stop_waveform, positive_waveforms)
+    # Plot for the time at true peak wrt vtp
+    ideal_PT = time_at_true_peak(ax3, vtp_values, min_values, max_values, start_waveform, stop_waveform, positive_waveforms, fit_end_true, plotting)
 
     if plotting:
         if pt_line:
@@ -300,4 +316,4 @@ def process_folder(file_path, start_waveform, stop_waveform, peaking_time, fit_s
         else:
             plt.savefig('plots/vtp_scan_no_pt_line_amp_'+file_path.split('/')[-1]+note+'.png', format='png', dpi=300, bbox_inches='tight')
 
-    return (m_PT, b_PT, pvalue_PT, rvalue_PT, m_peak, b_peak, pvalue_peak, rvalue_peak, fit_end_PT, fit_end_true)
+    return (m_PT, b_PT, pvalue_PT, rvalue_PT, m_peak, b_peak, pvalue_peak, rvalue_peak, fit_end_PT, ideal_PT)
