@@ -167,7 +167,7 @@ def values_at_peaking_time(ax, peak_values, peaking_time, fit_start_peak, fit_en
             style='italic',
             weight='bold')
     
-    return m_peak, b_peak, pvalue_peak, rvalue_peak
+    return m_peak, b_peak, pvalue_peak, rvalue_peak, fit_end_peak
 
 def time_at_true_peak(ax, vtp_values, min_values, max_values, start_waveform, stop_waveform, positive_waveforms):
     min_values = np.array(min_values)
@@ -193,7 +193,7 @@ def time_at_true_peak(ax, vtp_values, min_values, max_values, start_waveform, st
         tick.set_rotation(45)
     my_title(ax, 'True peaking time')
 
-def amplitude_at_true_peak(ax, vtp_values, min_values, max_values, start_waveform, stop_waveform, positive_waveforms, auto_fit, fit_start_min, fit_end_min, plotting):
+def amplitude_at_true_peak(ax, vtp_values, min_values, max_values, start_waveform, stop_waveform, positive_waveforms, auto_fit, fit_start_true, fit_end_true, plotting):
     
     if plotting:
         if positive_waveforms:
@@ -203,13 +203,13 @@ def amplitude_at_true_peak(ax, vtp_values, min_values, max_values, start_wavefor
 
     if auto_fit:
         if positive_waveforms:
-            fit_end_min = auto_fit_range(np.delete(max_values,1,1), fit_start_min)
+            fit_end_true = auto_fit_range(np.delete(max_values,1,1), fit_start_true)
         else:
-            fit_end_min = auto_fit_range(np.delete(min_values,1,1), fit_start_min)
+            fit_end_true = auto_fit_range(np.delete(min_values,1,1), fit_start_true)
 
-    # Linear regression from fit_min to fit_max fC
-    idx_min = np.abs(vtp_values - fit_start_min).argmin()
-    idx_max = np.abs(vtp_values - fit_end_min).argmin()
+    # Linear regression from fit_start_true to fit_max fC
+    idx_min = np.abs(vtp_values - fit_start_true).argmin()
+    idx_max = np.abs(vtp_values - fit_end_true).argmin()
     x = vtp_values[idx_min:idx_max]
     if positive_waveforms:
         y = np.abs(max_values[idx_min:idx_max, 3] - max_values[idx_min:idx_max, 2])
@@ -217,19 +217,19 @@ def amplitude_at_true_peak(ax, vtp_values, min_values, max_values, start_wavefor
         y = np.abs(min_values[idx_min:idx_max, 3] - min_values[idx_min:idx_max, 2])
 
     linearfit = linregress(x, y)
-    m_min = linearfit.slope
-    b_min = linearfit.intercept
-    pvalue_min = linearfit.pvalue
-    rvalue_min = linearfit.rvalue
+    m_true = linearfit.slope
+    b_true = linearfit.intercept
+    pvalue_true = linearfit.pvalue
+    rvalue_true = linearfit.rvalue
 
     if plotting:
-        ax.plot(x, m_min*x + b_min, label='y_min = ' + str(m_min) + 'x + ' + str(b_min))
+        ax.plot(x, m_true*x + b_true, label='y_true = ' + str(m_true) + 'x + ' + str(b_true))
 
         # Add light grid
         ax.grid(color='gray', linestyle='--', linewidth=0.5)
 
         # Print linear fit equation (up to two decimal places)
-        ax.text(0.75, 0.25, 'y = ' + str(round(m_min, 2)) + 'x + ' + str(round(b_min, 2)), 
+        ax.text(0.75, 0.25, 'y = ' + str(round(m_true, 2)) + 'x + ' + str(round(b_true, 2)), 
             horizontalalignment='center', 
             verticalalignment='center', 
             transform=ax.transAxes,         
@@ -250,9 +250,9 @@ def amplitude_at_true_peak(ax, vtp_values, min_values, max_values, start_wavefor
             ax.set_ylabel('Minimum value amplitude (mV)', loc='top')
             my_title(ax, 'Minimum value amplitude vs Vtp')
 
-    return m_min, b_min, pvalue_min, rvalue_min
+    return m_true, b_true, pvalue_true, rvalue_true, fit_end_true
 
-def process_folder(file_path, start_waveform, stop_waveform, peaking_time, fit_start_peak, fit_end_peak, fit_start_min, fit_end_min, auto_fit, pt_line, note, positive_waveforms, plotting=True):
+def process_folder(file_path, start_waveform, stop_waveform, peaking_time, fit_start_peak, fit_end_peak, fit_start_true, fit_end_true, auto_fit, pt_line, note, positive_waveforms, plotting=True):
     # Check if the file path is valid
     if not glob.glob(file_path):
         print("Invalid file path")
@@ -260,7 +260,7 @@ def process_folder(file_path, start_waveform, stop_waveform, peaking_time, fit_s
 
     # Find and sort all files .trc in the given path
     files = sorted(glob.glob(file_path + '/*.trc'))
-    print('Found ' + str(len(files)) + ' files')
+    print('\tFound ' + str(len(files)) + ' files\n')
 
     if len(files) == 0:
         print('No files found in the given path')
@@ -284,15 +284,15 @@ def process_folder(file_path, start_waveform, stop_waveform, peaking_time, fit_s
     # Loop over the waveforms
     peak_values, min_values, max_values = loop_on_waveforms(vtp_values, files, start_waveform, stop_waveform, peaking_time, ax, pt_line, plotting)
 
-    # Second plot at fixed peaking time
-    m_peak, b_peak, pvalue_peak, rvalue_peak = values_at_peaking_time(ax2, peak_values, peaking_time, fit_start_peak, fit_end_peak, auto_fit, plotting)
+    # Compute values at fixed peaking time
+    m_PT, b_PT, pvalue_PT, rvalue_PT, fit_end_PT = values_at_peaking_time(ax2, peak_values, peaking_time, fit_start_peak, fit_end_peak, auto_fit, plotting)
+
+    # Compute amplitude at true peak wrt vtp
+    m_peak, b_peak, pvalue_peak, rvalue_peak, fit_end_true = amplitude_at_true_peak(ax4, vtp_values, min_values, max_values, start_waveform, stop_waveform, positive_waveforms, auto_fit, fit_start_true, fit_end_true, plotting)
 
     if plotting:
-        # Third plot for the time at true peak wrt vtp
+        # Plot for the time at true peak wrt vtp
         time_at_true_peak(ax3, vtp_values, min_values, max_values, start_waveform, stop_waveform, positive_waveforms)
-    
-    # Fourth plot for the amplitude at true peak wrt vtp
-    m_min, b_min, pvalue_min, rvalue_min = amplitude_at_true_peak(ax4, vtp_values, min_values, max_values, start_waveform, stop_waveform, positive_waveforms, auto_fit, fit_start_min, fit_end_min, plotting)
 
     if plotting:
         if pt_line:
@@ -300,4 +300,4 @@ def process_folder(file_path, start_waveform, stop_waveform, peaking_time, fit_s
         else:
             plt.savefig('plots/vtp_scan_no_pt_line_amp_'+file_path.split('/')[-1]+note+'.png', format='png', dpi=300, bbox_inches='tight')
 
-    return (m_peak, b_peak, pvalue_peak, rvalue_peak, m_min, b_min, pvalue_min, rvalue_min)
+    return (m_PT, b_PT, pvalue_PT, rvalue_PT, m_peak, b_peak, pvalue_peak, rvalue_peak, fit_end_PT, fit_end_true)
