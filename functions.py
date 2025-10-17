@@ -72,6 +72,7 @@ def loop_on_waveforms(vtp_values, files, start_waveform, stop_waveform, peaking_
     peak_values = []
     min_values = []
     max_values = []
+    baselines = []
 
     vtp_idx = 0
 
@@ -87,6 +88,7 @@ def loop_on_waveforms(vtp_values, files, start_waveform, stop_waveform, peaking_
         
         # Compute the baseline up to 0 us
         baseline = np.median(y_values[:idx_0])*1000
+        baselines.append(baseline)
 
         # Find the value of the peak at peak_time
         idx_peak = np.abs(x_values - peaking_time).argmin()
@@ -121,7 +123,7 @@ def loop_on_waveforms(vtp_values, files, start_waveform, stop_waveform, peaking_
         ax.grid(color='gray', linestyle='--', linewidth=0.5)
 
     # Return the peak values, min values and max values as numpy arrays
-    return np.array(peak_values), np.array(min_values), np.array(max_values)
+    return np.array(peak_values), np.array(min_values), np.array(max_values), np.array(baselines)
 
 def values_at_peaking_time(ax, peak_values, peaking_time, fit_start_peak, fit_end_peak, auto_fit, plotting):
     # Plot the peak values at peak_time
@@ -299,7 +301,7 @@ def process_folder(file_path, start_waveform, stop_waveform, peaking_time, fit_s
         ax4 = None
 
     # Loop over the waveforms
-    peak_values, min_values, max_values = loop_on_waveforms(vtp_values, files, start_waveform, stop_waveform, peaking_time, ax, pt_line, plotting)
+    peak_values, min_values, max_values, baselines = loop_on_waveforms(vtp_values, files, start_waveform, stop_waveform, peaking_time, ax, pt_line, plotting)
 
     # Compute values at fixed peaking time
     m_PT, b_PT, pvalue_PT, rvalue_PT, fit_end_PT = values_at_peaking_time(ax2, peak_values, peaking_time, fit_start_peak, fit_end_peak, auto_fit, plotting)
@@ -316,4 +318,4 @@ def process_folder(file_path, start_waveform, stop_waveform, peaking_time, fit_s
         else:
             plt.savefig('plots/vtp_scan_no_pt_line_amp_'+file_path.split('/')[-1]+note+'.png', format='png', dpi=300, bbox_inches='tight')
 
-    return (m_PT, b_PT, pvalue_PT, rvalue_PT, m_peak, b_peak, pvalue_peak, rvalue_peak, fit_end_PT, ideal_PT)
+    return (m_PT, b_PT, pvalue_PT, rvalue_PT, m_peak, b_peak, pvalue_peak, rvalue_peak, fit_end_PT, ideal_PT, baselines)

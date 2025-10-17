@@ -9,6 +9,11 @@ from scipy.interpolate import UnivariateSpline
 from scipy.signal import argrelextrema
 from lecroyutils.data import LecroyScopeData
 
+# Use seaborn for plotting
+sns.set(style="whitegrid")
+# Use bigger fonts
+sns.set_context("talk", font_scale=1.5)
+
 def process_waveform(file_path, do_plotting=False, verbose=False):
     # Load data from the file
     data = LecroyScopeData.parse_file(file_path)
@@ -69,9 +74,9 @@ def process_waveform(file_path, do_plotting=False, verbose=False):
         # Create a new figure
         plt.figure(figsize=(10, 6))
         # Plot the original data
-        plt.plot(x_values, y_values, label='Acquired Data')
-        plt.xlabel('X values (us)')
-        plt.ylabel('Y values (V)')
+        plt.plot(x_values, y_values, label='Acquired Data', linewidth=1.5)
+        plt.xlabel('X values (us)', fontsize=18)
+        plt.ylabel('Y values (V)', fontsize=18)
         plt.title(file_path.split('/')[-1])
         plt.tight_layout()
         plt.show()
