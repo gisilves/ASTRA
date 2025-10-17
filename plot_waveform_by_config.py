@@ -1,10 +1,11 @@
 import sys
 import glob
 import numpy as np
-import seaborn as sns
 import matplotlib.pyplot as plt
 from scipy.interpolate import UnivariateSpline
 from lecroyutils.data import LecroyScopeData
+import os
+
 
 def process_waveform(file_path, ax_original, points, peaking_time_us, baseline_shift):
     # Load data from the file
@@ -37,7 +38,11 @@ def process_waveform(file_path, ax_original, points, peaking_time_us, baseline_s
     
 
     # Retrieve tes pulse values from name
-    test_pulse = int(file_path.split('/')[-2].split('_')[0].split('p')[1])
+    # Check if we are in Windows
+    if os.name == 'nt':
+        test_pulse = int(file_path.split('\\')[-2].split('_')[0].split('p')[1])
+    else:
+        test_pulse = int(file_path.split('/')[-2].split('_')[0].split('p')[1])
 
     # Plot the data (add filename as label)
     ax_original[0].plot(x_values, y_values, label='Vtp = ' + str(test_pulse) + 'mV')

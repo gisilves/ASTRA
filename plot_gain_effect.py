@@ -6,7 +6,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from lecroyutils.data import LecroyScopeData
-
+import os
 
 # Use seaborn for plotting
 sns.set(style="whitegrid")
@@ -169,5 +169,9 @@ if __name__ == '__main__':
     fig, axs = plt.subplots(len(pts), 1, figsize=(12, len(pts)*6.25))
     for i, pt in enumerate(pts):
         plot_waveform_by_cfg(args.file_path, pt, axs[i], args.fit_min_gain0, args.fit_max_gain0, args.fit_min_gain1, args.fit_max_gain1, args.pol1)    
-                          
-    plt.savefig('waveforms_by_pt_gain_comparison_' + args.file_path.split('/')[-1] + '.png', dpi=300, bbox_inches='tight', pad_inches=0.1)
+
+    # Check if we are on Windows
+    if os.name == 'nt':
+        plt.savefig('waveforms_by_pt_gain_comparison_' + args.file_path.split('\\')[-1] + '.png', dpi=300, bbox_inches='tight', pad_inches=0.1)
+    else:                          
+        plt.savefig('waveforms_by_pt_gain_comparison_' + args.file_path.split('/')[-1] + '.png', dpi=300, bbox_inches='tight', pad_inches=0.1)

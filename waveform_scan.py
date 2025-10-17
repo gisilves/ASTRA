@@ -1,15 +1,13 @@
 import sys
 import glob
 import numpy as np
-import time
 import concurrent.futures
 from tqdm import tqdm
 import seaborn as sns
 import matplotlib.pyplot as plt
 from scipy.interpolate import UnivariateSpline
-from scipy.signal import argrelextrema
 from lecroyutils.data import LecroyScopeData
-
+import os
 
 def process_waveform(file_path, do_plotting=False, verbose=False):
     # Load data from the file
@@ -106,7 +104,12 @@ def process_waveform(file_path, do_plotting=False, verbose=False):
         # Add title, labels, and legend
         plt.xlabel('X values (us)')
         plt.ylabel('Y values (V)')
-        plt.title(file_path.split('/')[-1])
+
+        # Check if we are on Windows
+        if os.name == 'nt':
+            plt.title(file_path.split('\\')[-1]) 
+        else:
+            plt.title(file_path.split('/')[-1])
         plt.legend()
         plt.show()
 

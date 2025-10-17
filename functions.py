@@ -1,15 +1,11 @@
 import sys
 import glob
-import argparse
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
-import matplotlib.gridspec as gridspec
 from scipy.stats import linregress
-from scipy.interpolate import UnivariateSpline
 from lecroyutils.data import LecroyScopeData
-import time
+import os
 
 def my_title(ax, title):
     ax.text(1.02, 0.5, title,
@@ -314,8 +310,17 @@ def process_folder(file_path, start_waveform, stop_waveform, peaking_time, fit_s
 
     if plotting:
         if pt_line:
-            plt.savefig('plots/vtp_scan_amp_'+file_path.split('/')[-1]+note+'.png', format='png', dpi=300, bbox_inches='tight')
+
+            # Check if we are on Windows
+            if os.name == 'nt':
+                plt.savefig('plots/vtp_scan_amp_'+file_path.split('\\')[-1]+note+'.png', format='png', dpi=300, bbox_inches='tight')
+            else:
+                plt.savefig('plots/vtp_scan_amp_'+file_path.split('/')[-1]+note+'.png', format='png', dpi=300, bbox_inches='tight')
         else:
-            plt.savefig('plots/vtp_scan_no_pt_line_amp_'+file_path.split('/')[-1]+note+'.png', format='png', dpi=300, bbox_inches='tight')
+            # Check if we are on Windows
+            if os.name == 'nt':
+                plt.savefig('plots/vtp_scan_no_pt_line_amp_'+file_path.split('\\')[-1]+note+'.png', format='png', dpi=300, bbox_inches='tight')
+            else:
+                plt.savefig('plots/vtp_scan_no_pt_line_amp_'+file_path.split('/')[-1]+note+'.png', format='png', dpi=300, bbox_inches='tight')
 
     return (m_PT, b_PT, pvalue_PT, rvalue_PT, m_peak, b_peak, pvalue_peak, rvalue_peak, fit_end_PT, ideal_PT, baselines)
